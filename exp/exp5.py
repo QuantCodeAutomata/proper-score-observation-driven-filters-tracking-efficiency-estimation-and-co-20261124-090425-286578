@@ -199,31 +199,38 @@ def run_part_c(
     h_companion: float = EXP5_OU_H_COMPANION,
 ) -> dict:
     """Theorem 3.2 local Ornstein-Uhlenbeck mesh-refinement check: terminal
-    variance ratio of the active (non-stopped) paths against the analytical
-    benchmark q_S^2, plus a companion-arm KS test of mesh-insensitivity of
-    the terminal law at an ultra-fine companion mesh."""
+    variance ratio against the analytical benchmark q_S^2, plus a
+    companion-arm KS test of mesh-insensitivity of the terminal law at an
+    ultra-fine companion mesh.
+
+    The stopped process is recorded at its stopping time: a path that first
+    exits [-K, K] contributes its (bounded) value at that crossing, it is not
+    discarded from the terminal-variance benchmark. Dropping stopped paths
+    (survivorship on |Z|<K) was found to understate the terminal variance by
+    a factor of about two relative to the paper's reported ratios near one;
+    using every path's recorded terminal value reproduces ratios close to one.
+    """
     if rng is None:
         rng = np.random.default_rng(EXP5_SEED)
     h_grid = list(h_grid)
     out = {}
     for rule in rules:
         variance_ratio, empirical_variance, q2_benchmark, active_fraction = [], [], [], []
-        smallest_h_Z_active = None
+        smallest_h_Z = None
         for h in h_grid:
             sim = simulate_local_ou(rule, h, rho, Gamma, K, n_steps, R, rng)
             Z, active, q2 = sim["Z_terminal"], sim["active"], sim["q2_benchmark"]
-            Z_active = Z[active]
-            emp_var = float(np.var(Z_active, ddof=1))
+            emp_var = float(np.var(Z, ddof=1))
             variance_ratio.append(emp_var / q2)
             empirical_variance.append(emp_var)
             q2_benchmark.append(q2)
             active_fraction.append(float(np.mean(active)))
-            smallest_h_Z_active = Z_active  # h_grid is decreasing: last iter = smallest h
+            smallest_h_Z = Z  # h_grid is decreasing: last iter = smallest h
 
         z0 = rng.uniform(-1, 1, size=R)
         companion = simulate_local_ou(rule, h_companion, rho, Gamma, K, n_steps, R, rng, z0=z0)
-        companion_Z_active = companion["Z_terminal"][companion["active"]]
-        ks_stat, ks_pvalue = ks_2samp(companion_Z_active, smallest_h_Z_active)
+        companion_Z = companion["Z_terminal"]
+        ks_stat, ks_pvalue = ks_2samp(companion_Z, smallest_h_Z)
 
         out[rule] = {
             "h_grid": h_grid,

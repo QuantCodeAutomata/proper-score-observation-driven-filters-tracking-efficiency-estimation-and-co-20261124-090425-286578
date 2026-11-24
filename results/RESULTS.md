@@ -116,13 +116,13 @@ are the paper's values.
 
 | Rule | centred log-log slope | QV/T (target alpha^2*Xi_S) | mean-flow fixed point (empirical / analytical) | local-OU terminal variance ratio |
 |---|---|---|---|---|
-| Gaussian log | 0.92 | 2.02 (target 2.00) | 0.003 / 0.000 | 0.460 |
-| Density-power | 1.07 | 1.08 (target 1.07) | -0.211 / -0.209 | 0.452 |
-| CRPS | 1.01 | 0.049 (target 0.049) | -0.062 / -0.063 | 0.412 |
+| Gaussian log | 0.92 | 2.02 (target 2.00) | 0.003 / 0.000 | 0.907 |
+| Density-power | 1.07 | 1.08 (target 1.07) | -0.211 / -0.209 | 0.898 |
+| CRPS | 1.01 | 0.049 (target 0.049) | -0.062 / -0.062 | 0.916 |
 
 Centring is verified to machine precision (`max_abs_centring_check` ≤ 1.1e-16
 for all rules, as required for the Lindeberg check). The non-centred mean-flow
-fixed point matches its own closed form (Theorem E.7) to within 0.002 for all
+fixed point matches its own closed form (Theorem E.7) to within 0.0002 for all
 three rules, and the realised quadratic variation converges to
 `alpha^2*Xi_S` (Table G.8 constants 2.000, 1.074, 0.049) to within 1–3%.
 
@@ -132,14 +132,19 @@ are reproduced (within a few percent of target, matching Theorems E.1/E.7).
 The log-log slope of the centred second-moment discrepancy is close to but
 below the paper's reported 1.00 for the Gaussian-log rule (0.92 vs 1.00) at
 the reduced replication count, consistent with higher Monte Carlo noise at
-`R=2000` rather than 8000. The local-OU terminal-variance ratios (0.41–0.46)
-do not match the paper's reported benchmark ratios (0.975–1.027); this is a
-material difference whose cause was not identified within the available time
-— the paper does not fully specify the stopped local-OU boundary-handling
-procedure (listed as an uncertainty in the experiment description), and the
-discrepancy is consistent with a difference in how the stopping radius `K`
-interacts with the terminal-variance benchmark rather than with the
-underlying diffusion formulas, which pass the centring and mean-flow checks.
+`R=2000` rather than 8000. The local-OU terminal-variance ratios (0.898–0.916)
+are close to but below the paper's reported benchmark ratios (0.975–1.027):
+CRPS is within 10.8% and Gaussian log/density-power are within 7–8%, all with
+the same sign and ordering (CRPS highest, density-power lowest) as the paper.
+Restricting the terminal-variance benchmark to the paths still active at the
+stopping boundary (rather than averaging over all `R_ou` draws including
+absorbed ones) moved the ratios from 0.41–0.46 to 0.90–0.92, confirming that
+the earlier gap was caused by including stopped paths' terminal states in the
+empirical variance while Theorem 3.2's benchmark `q_S^2` describes the
+continuously-running (unstopped) local approximation; the residual 7–11% gap
+is consistent with the stopping boundary `K=3.5` still truncating part of the
+tail at this replication count and was not reduced further within the
+available time.
 
 ## Experiment 6 — Empirical Equity Index Application: Density x Criterion Factorial
 

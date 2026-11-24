@@ -158,7 +158,7 @@ def run_part_b(
     R: int = EXP5_R_MEANFLOW_RUN,
     rng: np.random.Generator | None = None,
     h_grid=EXP5_H_GRID_CENTRED,
-    T_steps: int = EXP5_T_MEANFLOW,
+    T_time: float = EXP5_T_MEANFLOW,
     alpha_bar: float = EXP5_ALPHA_BAR,
     kappa: float = EXP5_KAPPA,
     dof: int = EXP5_MEANFLOW_T5_DOF,
@@ -173,7 +173,7 @@ def run_part_b(
     for rule in rules:
         fixed_point_estimate = []
         for h in h_grid:
-            path = simulate_mean_flow(rule, h, alpha_bar, kappa, T_steps, R, rng, dof=dof)
+            path = simulate_mean_flow(rule, h, alpha_bar, kappa, T_time, R, rng, dof=dof)
             fixed_point_estimate.append(float(path[:, -1].mean()))
         analytical = mean_flow_fixed_point(rule, alpha_bar, kappa)
         limit_estimate = fixed_point_estimate[-1]  # h_grid is decreasing in h

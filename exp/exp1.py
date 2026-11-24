@@ -26,25 +26,41 @@ RESULTS_DIR = "results"
 def classify_tail(rule: str, z_max: float = 10.0, tail_window: float = 1.0) -> dict:
     """Classify the tail behaviour of g_S^circ on |z| in [0, z_max].
 
-    * "unbounded" if |g^circ(z_max)| keeps growing (ratio to value at z_max/2 > 1.5);
-    * "tail_saturating" if the driver approaches a finite nonzero limit;
-    * "redescending" if the driver returns to (near) zero after an interior peak.
+    The "redescending" vs. "tail-saturating" distinction is a property of the
+    true asymptotic limit as z -> infinity (as in Appendix G and Section 6.1:
+    a redescending driver returns to zero, a tail-saturating one approaches a
+    finite nonzero plateau), not of the ratio between the value at z_max and
+    an interior peak -- density-power has a tall interior peak (Table G.5)
+    followed by a slow decay to its nonzero plateau kappa_beta/J_S, which a
+    peak-relative threshold would misclassify as redescending.
+
+    * "unbounded" if |g^circ| keeps growing without bound for z -> infinity;
+    * "tail_saturating" if the asymptotic limit is finite and nonzero;
+    * "redescending" if the asymptotic limit is (numerically) zero.
     """
     z_grid = np.linspace(0.01, z_max, 2000)
     g = curvature_normalised_driver(rule, z_grid)
     g_abs = np.abs(g)
-    tail_val = g_abs[-1]
-    half_val = np.abs(curvature_normalised_driver(rule, np.array([z_max / 2])))[0]
-    if tail_val > 1.5 * max(half_val, 1e-12):
+
+    # Probe the true z -> infinity behaviour far beyond the display range.
+    z_far = np.array([1.0e2, 1.0e3, 1.0e4])
+    g_far = np.abs(curvature_normalised_driver(rule, z_far))
+    is_unbounded = g_far[-1] > 10.0 * max(g_far[0], 1e-12)
+    asymptotic_limit = float(np.abs(curvature_normalised_driver(rule, np.array([1.0e6]))[0]))
+
+    if is_unbounded:
         return {"tail": "unbounded", "tail_limit": None, "peak_z": None, "monotone_to_plateau": None}
+
     peak_idx = int(np.argmax(g_abs))
     peak_z = float(z_grid[peak_idx])
-    is_redescending = tail_val < 0.1 * g_abs[peak_idx]
+    # Redescending: the asymptotic plateau is itself (numerically) zero.
+    is_redescending = asymptotic_limit < 1.0e-3 * max(g_abs[peak_idx], 1e-12)
     monotone = bool(np.all(np.diff(g_abs[: peak_idx + 1]) >= -1e-9)) if peak_idx > 0 else True
     monotone_to_plateau = bool(np.all(np.diff(g_abs[peak_idx:]) >= -1e-6))
     return {
         "tail": "redescending" if is_redescending else "tail_saturating",
         "tail_limit": float(g[-1]),
+        "asymptotic_limit": asymptotic_limit,
         "peak_z": peak_z,
         "monotone_to_plateau": monotone_to_plateau,
     }

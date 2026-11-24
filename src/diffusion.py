@@ -85,18 +85,24 @@ def mean_flow_fixed_point(rule: str, alpha_bar: float, kappa: float) -> float:
 
 
 def simulate_mean_flow(
-    rule: str, h: float, alpha_bar: float, kappa: float, T_steps: int, R: int, rng: np.random.Generator,
-    dof: int = 5, lambda_init: float = 2.0,
+    rule: str, h: float, alpha_bar: float, kappa: float, T_time: float, R: int, rng: np.random.Generator,
+    dof: int = 5, lambda_init: float = 0.0,
 ) -> np.ndarray:
-    """Simulate the non-centred O(h)-gain recursion; residual is a
-    variance-matched Student-t_dof innovation. Returns (R, T_steps) lambda path."""
+    """Simulate the non-centred O(h)-gain recursion over rescaled time horizon
+    ``T_time`` (Theorem E.7). As in ``simulate_local_ou``, demonstrating the
+    continuous-time limit requires the discrete step count to grow as h -> 0
+    (n_steps = T_time / h), so that the cumulative relaxation kappa_h*n_steps =
+    kappa*T_time stays fixed across the mesh; a fixed raw iteration count would
+    not let the recursion approach its steady state as h shrinks. Residual is a
+    variance-matched Student-t_dof innovation. Returns (R, n_steps) lambda path."""
     scale = np.sqrt((dof - 2) / dof)
     alpha_h = alpha_bar * h
     kappa_h = kappa * h
+    n_steps = max(1, int(round(T_time / h)))
     lam = np.full(R, lambda_init, dtype=float)
-    path = np.empty((R, T_steps))
+    path = np.empty((R, n_steps))
     driver = DRIVERS[rule]
-    for t in range(T_steps):
+    for t in range(n_steps):
         z = rng.standard_t(dof, size=R) * scale
         if rule == "mmd_rbf":
             u = driver(z, lam=lam)

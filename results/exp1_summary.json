@@ -3,13 +3,15 @@
     "gaussian_log": 0.5,
     "density_power": 0.357206,
     "crps": 0.070524,
-    "mmd_rbf": 0.034
+    "mmd_rbf": 0.034,
+    "student_log": 0.3739615125374834
   },
   "K_S": {
     "gaussian_log": 0.5,
     "density_power": 0.268493,
     "crps": 0.012311,
-    "mmd_rbf": 0.002
+    "mmd_rbf": 0.002,
+    "student_log": 0.3171731935657104
   },
   "curvature_normalised_scale_sqrtK_over_J": {
     "gaussian_log": 1.4142135623730951,
@@ -25,20 +27,23 @@
       "monotone_to_plateau": null
     },
     "density_power": {
-      "tail": "redescending",
+      "tail": "tail_saturating",
       "tail_limit": 0.4947442295297263,
+      "asymptotic_limit": 0.3411615694370122,
       "peak_z": 3.7881090545272635,
       "monotone_to_plateau": false
     },
     "crps": {
       "tail": "tail_saturating",
       "tail_limit": 7.999965735746076,
+      "asymptotic_limit": 7.999965735746076,
       "peak_z": 8.630685342671336,
       "monotone_to_plateau": true
     },
     "mmd_rbf": {
       "tail": "tail_saturating",
       "tail_limit": 8.013945284012983,
+      "asymptotic_limit": 8.004868440467902,
       "peak_z": 3.873066533266633,
       "monotone_to_plateau": false
     }
@@ -69,7 +74,5 @@
       "K_table": 0.002
     }
   },
-  "redescending_rules": [
-    "density_power"
-  ]
+  "redescending_rules": []
 }

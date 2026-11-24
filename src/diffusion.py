@@ -108,24 +108,39 @@ def simulate_mean_flow(
 
 
 def simulate_local_ou(
-    rule: str, h: float, rho: float, Gamma: float, K: float, n_steps: int, R: int,
+    rule: str, h: float, rho: float, Gamma: float, K: float, M: float, R: int,
     rng: np.random.Generator, z0: np.ndarray | None = None,
 ) -> dict:
     """Local Ornstein-Uhlenbeck approximation (Theorem 3.2): normalised error
-    Z_t = h^{-1/4} * (lambda_t - target_t), stopped at |Z_t| >= K.
+    Z_u = h^{-1/4} * (lambda_t - target_t), observed over the rescaled-time
+    horizon u in [0, M], stopped at |Z_u| >= K.
 
-    Independent update and target shocks give terminal-variance benchmark
-    q_S^2 = rho^2 * K_S/J_S^2 + Gamma^2.
+    The curvature-normalised update and the independent target shock each
+    contribute a diffusion coefficient per unit of rescaled time: the update
+    contributes rho^2*K_S/J_S^2 (its scale-driver innovation variance, after
+    curvature normalisation) and the target contributes Gamma^2, so the
+    combined terminal-variance benchmark over the horizon M is
+    q_S^2 * M with q_S^2 = rho^2*K_S/J_S^2 + Gamma^2.
+
+    The discrete recursion advances rescaled time in steps of size sqrt(h)
+    (consistent with the h^{-1/4} error normalisation: a sum of n = M/sqrt(h)
+    i.i.d. increments of variance O(sqrt(h)) has variance O(sqrt(h)*n) = O(M),
+    independent of h as h -> 0), so halving h doubles the step count while
+    keeping the terminal-variance benchmark fixed at q_S^2*M.
     """
     j_s, k_s = J_S[rule], K_S[rule]
-    q2 = rho ** 2 * k_s / j_s ** 2 + Gamma ** 2
+    sigma_update = rho * np.sqrt(k_s) / abs(j_s)
+    sigma_target = Gamma
+    q2 = sigma_update ** 2 + sigma_target ** 2
+    n_steps = max(1, int(round(M / np.sqrt(h))))
+    du = np.sqrt(h)
+    step_sd = np.sqrt(du)
     Z = np.zeros(R) if z0 is None else np.array(z0, dtype=float, copy=True)
     active = np.ones(R, dtype=bool)
     for _ in range(n_steps):
         eta_update = rng.standard_normal(R)
         eta_target = rng.standard_normal(R)
-        Z = np.where(active, Z - rho * np.sqrt(h) * 0 + rho * eta_update + Gamma * eta_target, Z)
-        # local OU recursion approximated as a driftless random walk with the
-        # combined-shock variance q_S^2, stopped at the radius K
+        increment = step_sd * (sigma_update * eta_update + sigma_target * eta_target)
+        Z = np.where(active, Z + increment, Z)
         active &= np.abs(Z) < K
-    return {"Z_terminal": Z, "q2_benchmark": q2, "active": active}
+    return {"Z_terminal": Z, "q2_benchmark": q2 * M, "active": active, "n_steps": n_steps}

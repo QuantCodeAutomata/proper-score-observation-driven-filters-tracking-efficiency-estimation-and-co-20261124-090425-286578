@@ -61,3 +61,54 @@ def one_sided_jump_contamination(
     y_clean = scale * eps
     y_jump = np.where(mask, y_clean - halfnormal_scale * scale * z_abs, y_clean)
     return {"y_clean": y_clean, "y_jump": y_jump, "mask": mask, "scale": scale}
+
+
+# ---------------------------------------------------------------------------
+# Batch (R replications at once) generators for large Monte Carlo experiments
+# (exp_3, exp_8), vectorised over the replication axis to avoid a Python-level
+# loop over replications on top of the time loop.
+# ---------------------------------------------------------------------------
+def latent_log_vol_path_batch(
+    R: int, T: int, phi: float, sigma: float, rng: np.random.Generator, x0: float = 0.0
+) -> np.ndarray:
+    """R independent stationary Gaussian AR(1) latent log-volatility paths,
+    shape (R, T); row r reproduces :func:`latent_log_vol_path` exactly."""
+    eta = rng.standard_normal((R, T))
+    x = np.empty((R, T))
+    x[:, 0] = x0
+    for t in range(1, T):
+        x[:, t] = phi * x[:, t - 1] + sigma * eta[:, t]
+    return x
+
+
+def bernoulli_variance_contamination_batch(
+    x: np.ndarray, prob: float, multiplier: float, rng: np.random.Generator
+) -> dict:
+    """Batch version of :func:`bernoulli_variance_contamination`; ``x`` has
+    shape (R, T), common latent paths across rules within each replication."""
+    R, T = x.shape
+    eps = rng.standard_normal((R, T))
+    mask = rng.random((R, T)) < prob
+    eps_contam = np.where(mask, eps * multiplier, eps)
+    scale = np.exp(x / 2)
+    return {
+        "y_clean": scale * eps,
+        "y_contam": scale * eps_contam,
+        "mask": mask,
+        "eps": eps,
+        "scale": scale,
+    }
+
+
+def one_sided_jump_contamination_batch(
+    x: np.ndarray, prob: float, halfnormal_scale: float, rng: np.random.Generator
+) -> dict:
+    """Batch version of :func:`one_sided_jump_contamination`; ``x`` has shape (R, T)."""
+    R, T = x.shape
+    eps = rng.standard_normal((R, T))
+    mask = rng.random((R, T)) < prob
+    z_abs = np.abs(rng.standard_normal((R, T)))
+    scale = np.exp(x / 2)
+    y_clean = scale * eps
+    y_jump = np.where(mask, y_clean - halfnormal_scale * scale * z_abs, y_clean)
+    return {"y_clean": y_clean, "y_jump": y_jump, "mask": mask, "scale": scale}

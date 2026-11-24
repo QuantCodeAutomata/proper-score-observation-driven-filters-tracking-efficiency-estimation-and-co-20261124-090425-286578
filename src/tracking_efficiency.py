@@ -95,8 +95,14 @@ def _student_density_power_score(v: np.ndarray, y: np.ndarray, beta: float, nu: 
 
 
 def _expectation_over_law(func, law: str) -> float:
+    """E_F[func(eps)]. Student-t innovation laws with low degrees of freedom have
+    power-law tails (pdf ~ |x|^{-(nu+1)}), so a finite truncation such as +/-40
+    discards a non-negligible share of E[eps^4] as nu -> 4 (observed bias up to
+    ~8% at nu=5 against the closed form (nu-1)/(2(nu-4)) for the log-score
+    update variance). Integrating to +/-inf lets scipy's adaptive quadrature
+    handle the tail via its own variable transform instead of a fixed cutoff."""
     pdf, _ = _innovation_density(law)
-    val, _ = integrate.quad(lambda x: func(x) * pdf(x), -40, 40, limit=QUAD_LIMIT)
+    val, _ = integrate.quad(lambda x: func(x) * pdf(x), -np.inf, np.inf, limit=QUAD_LIMIT)
     return val
 
 

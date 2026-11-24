@@ -18,6 +18,7 @@ from typing import Callable
 import numpy as np
 
 from src.scoring_rules import (
+    J_S,
     driver_crps,
     driver_density_power,
     driver_gaussian_log,
@@ -26,20 +27,30 @@ from src.scoring_rules import (
 )
 
 
-def scale_update(rule: str, lam: float, y: float, **kwargs) -> float:
-    """Recursion update u_S(lambda, y) for a scale (log-variance) filter."""
+def scale_update(rule: str, lam: float, y: float, curvature_normalize: bool = False, **kwargs) -> float:
+    """Recursion update u_S(lambda, y) for a scale (log-variance) filter.
+
+    When ``curvature_normalize`` is True, the raw driver g_S(z) is divided by
+    its Gaussian-reference-state curvature J_S (Table G.5), giving the
+    aligned driver g_S(z)/J_S used by the controlled simulations of Sections
+    6.3 and 7.1/7.4 so that the local mean (first-order) response coefficient
+    is the same across scoring rules; parameter-estimation experiments (the
+    empirical application) leave alpha free and do not use this option.
+    """
     z = y * np.exp(-lam / 2)
     if rule == "gaussian_log":
-        return driver_gaussian_log(z)
-    if rule == "density_power":
-        return driver_density_power(z, beta=kwargs.get("beta", 0.15))
-    if rule == "crps":
-        return driver_crps(z)
-    if rule == "mmd_rbf":
-        return driver_mmd_rbf(z, lam=lam, ell=kwargs.get("ell", 2.0))
-    if rule == "student_log":
-        return driver_student_log(z, nu=kwargs.get("nu", 6))
-    raise ValueError(f"Unknown scoring rule: {rule}")
+        raw = driver_gaussian_log(z)
+    elif rule == "density_power":
+        raw = driver_density_power(z, beta=kwargs.get("beta", 0.15))
+    elif rule == "crps":
+        raw = driver_crps(z)
+    elif rule == "mmd_rbf":
+        raw = driver_mmd_rbf(z, lam=lam, ell=kwargs.get("ell", 2.0))
+    elif rule == "student_log":
+        raw = driver_student_log(z, nu=kwargs.get("nu", 6))
+    else:
+        raise ValueError(f"Unknown scoring rule: {rule}")
+    return raw / J_S[rule] if curvature_normalize else raw
 
 
 def filter_scale_path(
@@ -80,6 +91,34 @@ def filter_scale_path_frozen(
         u = scale_update(rule, lam_prev, y[t], **kwargs)
         lam_prev = omega + phi * lam_prev + alpha * u
         out[t] = lam_prev
+    return out
+
+
+def filter_scale_path_batch(
+    Y: np.ndarray,
+    omega: float,
+    phi: float,
+    alpha: float,
+    rule: str,
+    lambda_init: float | np.ndarray = 0.0,
+    **kwargs,
+) -> np.ndarray:
+    """Vectorised scale-filter recursion over R replications at once.
+
+    ``Y`` has shape (R, T); returns the filtered log-variance path of shape
+    (R, T) with ``lam[:, 0]`` the one-step-ahead prediction for ``Y[:, 0]``.
+    All :func:`scale_update` driver formulas are elementwise, so broadcasting
+    over the replication axis reproduces the scalar recursion exactly while
+    avoiding a Python-level loop over replications (used by exp_3 and exp_8,
+    whose Monte Carlo replication counts make the scalar loop impractical).
+    """
+    R, T = Y.shape
+    lam = np.full(R, lambda_init, dtype=float) if np.isscalar(lambda_init) else np.array(lambda_init, dtype=float, copy=True)
+    out = np.empty((R, T))
+    for t in range(T):
+        out[:, t] = lam  # pre-update state used to predict Y[:, t], matching filter_scale_path's lam[:T] convention
+        u = scale_update(rule, lam, Y[:, t], **kwargs)
+        lam = omega + phi * lam + alpha * u
     return out
 
 

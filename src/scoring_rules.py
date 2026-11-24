@@ -158,6 +158,13 @@ def psi_mmd_rbf(lam: float, y: np.ndarray, ell: float = ELL_MMD) -> np.ndarray:
     return 0.5 * driver_mmd_rbf(z, lam, ell)
 
 
+def psi_student_log(lam: float, y: np.ndarray, nu: float = NU_STUDENT) -> np.ndarray:
+    """Raw innovation for the Student-t_nu log score (Table G.5 relation
+    g_S(z) = 2*psi_S(z)): psi_S = 0.5 * driver_student_log(z, nu)."""
+    z = y * np.exp(-lam / 2)
+    return 0.5 * driver_student_log(z, nu)
+
+
 SCORES = {
     "gaussian_log": score_gaussian_log,
     "density_power": score_density_power,
@@ -169,7 +176,35 @@ PSIS = {
     "density_power": psi_density_power,
     "crps": psi_crps,
     "mmd_rbf": psi_mmd_rbf,
+    "student_log": psi_student_log,
 }
+
+
+def _reference_curvature_quadrature(rule: str, n_nodes: int = 200, **kwargs) -> tuple[float, float]:
+    """Gauss-Hermite quadrature estimate of (J_S, K_S) at the Gaussian
+    reference state (lambda=0, Y ~ N(0,1)), used for rules not tabulated in
+    Table G.5 (e.g. the Student-t6 log score benchmark of Section 6.3, whose
+    data-generating law in that experiment is still standard Gaussian)."""
+    from numpy.polynomial.hermite import hermgauss
+
+    x, w = hermgauss(n_nodes)
+    y = np.sqrt(2) * x
+    weights = w / np.sqrt(np.pi)
+    psi = PSIS[rule]
+    psi0 = psi(0.0, y, **kwargs)
+    k = float(np.sum(weights * psi0 ** 2))
+    h = 1e-5
+    psi_plus = psi(h, y, **kwargs)
+    psi_minus = psi(-h, y, **kwargs)
+    j = float(-np.sum(weights * (psi_plus - psi_minus) / (2 * h)))
+    return j, k
+
+
+# Student-t6 log score reference-state curvature/variance under the Gaussian
+# law (Section 6.3's data-generating innovations are standard Gaussian even
+# when the working/scoring density is Student-t6); not tabulated in Table G.5
+# because that table covers only the four Gaussian-working-density rules.
+J_S["student_log"], K_S["student_log"] = _reference_curvature_quadrature("student_log", nu=NU_STUDENT)
 
 
 def curvature_normalised_driver(rule: str, z: np.ndarray) -> np.ndarray:

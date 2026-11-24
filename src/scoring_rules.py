@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import stats
+from scipy.special import gamma
 from scipy.stats import norm, t as student_t
 
 # ---------------------------------------------------------------------------
@@ -219,13 +220,25 @@ def curvature_normalised_driver(rule: str, z: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # CRPS for a Student-t working density (Appendix G, Eq. G.1, Jordan et al. 2019)
 # ---------------------------------------------------------------------------
+_CRPS_T_CONST_CACHE: dict = {}
+
+
 def crps_student_t(v: np.ndarray, y: np.ndarray, nu: float = NU_STUDENT) -> np.ndarray:
-    """CRPS_{t_nu}(v, y) per Eq. (G.1); v is the predictive variance."""
-    from scipy.special import beta as beta_fn
+    """CRPS_{t_nu}(v, y) per Eq. (G.1); v is the predictive variance.
+
+    Uses ``scipy.special.stdtr`` (a direct ufunc) and a cached normalising
+    constant instead of the ``scipy.stats.t`` object interface, because this
+    function is evaluated at every time step of the recursion loop."""
+    from scipy.special import beta as beta_fn, stdtr
+
+    if nu not in _CRPS_T_CONST_CACHE:
+        d_nu = nu - 2
+        c_nu = (2 * np.sqrt(nu - 2) / (nu - 1)) * beta_fn(0.5, nu - 0.5) / beta_fn(0.5, nu / 2) ** 2
+        pdf_const = float(gamma((nu + 1) / 2) / (np.sqrt(nu * np.pi) * gamma(nu / 2)))
+        _CRPS_T_CONST_CACHE[nu] = (d_nu, c_nu, pdf_const)
+    d_nu, c_nu, pdf_const = _CRPS_T_CONST_CACHE[nu]
 
     z = y / np.sqrt(v)
-    f_nu = student_t.pdf(z, df=nu)
-    F_nu = student_t.cdf(z, df=nu)
-    d_nu = nu - 2
-    c_nu = (2 * np.sqrt(nu - 2) / (nu - 1)) * beta_fn(0.5, nu - 0.5) / beta_fn(0.5, nu / 2) ** 2
+    f_nu = pdf_const * (1.0 + z * z / nu) ** (-(nu + 1) / 2)
+    F_nu = stdtr(nu, z)
     return np.sqrt(v) * (z * (2 * F_nu - 1) + 2 * f_nu * (d_nu + z ** 2) / (nu - 1) - c_nu)

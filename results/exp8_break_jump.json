@@ -1,0 +1,122 @@
+{
+  "break": {
+    "gaussian_log": {
+      "adaptation_delay": 17.508666666666667,
+      "adaptation_delay_se": 0.1706926330072946,
+      "cumulative_excess_loss": 76.43536541517092,
+      "cumulative_excess_loss_se": 1.3680937933749142
+    },
+    "density_power": {
+      "adaptation_delay": 25.208666666666666,
+      "adaptation_delay_se": 0.19526943626881482,
+      "cumulative_excess_loss": 80.19567796248295,
+      "cumulative_excess_loss_se": 0.5774587900090615
+    },
+    "density_power_minus_log": {
+      "adaptation_delay_diff": 7.699999999999999,
+      "cumulative_excess_loss_diff": 3.760312547312026
+    },
+    "R": 3000,
+    "T_pre": 100,
+    "T_post": 300
+  },
+  "jump": {
+    "cells": {
+      "gaussian_log": {
+        "frozen_fit": {
+          "omega": 0.004092775416968642,
+          "phi": 0.9906498346467107,
+          "alpha": 0.05859083702743253,
+          "nll": 0.7539809310230848,
+          "success": true
+        },
+        "refitted_fit": {
+          "omega": 0.012672770952418436,
+          "phi": 0.9869092574117603,
+          "alpha": 0.01850439991437918,
+          "nll": 0.9904127607111225,
+          "success": true
+        },
+        "rmse_clean_frozen": 0.5619139830935965,
+        "rmse_jump_frozen": 2.370751775944492,
+        "rmse_clean_refitted": 0.8457340372577838,
+        "rmse_jump_refitted": 1.073709326273684,
+        "jump_minus_clean_frozen": 1.8088377928508956,
+        "jump_minus_clean_refitted": 0.22797528901590025
+      },
+      "gaussian_density_power": {
+        "frozen_fit": {
+          "omega": 0.003985055808482617,
+          "phi": 0.9895912866712097,
+          "alpha": 0.09871367789989179,
+          "nll": -5.233217489217938,
+          "success": true
+        },
+        "refitted_fit": {
+          "omega": 0.0035151883937734564,
+          "phi": 0.9915920290648417,
+          "alpha": 0.09218340217399848,
+          "nll": -5.184753667147067,
+          "success": true
+        },
+        "rmse_clean_frozen": 0.5180085962291253,
+        "rmse_jump_frozen": 0.5670752083148476,
+        "rmse_clean_refitted": 0.5214998931624667,
+        "rmse_jump_refitted": 0.5694285669563782,
+        "jump_minus_clean_frozen": 0.04906661208572227,
+        "jump_minus_clean_refitted": 0.047928673793911525
+      },
+      "student_log": {
+        "frozen_fit": {
+          "omega": 0.009418650361538522,
+          "phi": 0.9899051433170446,
+          "alpha": 0.19622314021544462,
+          "nll": 1.1126145543985906,
+          "success": true
+        },
+        "refitted_fit": {
+          "omega": 0.009241582323292743,
+          "phi": 0.9905498834285891,
+          "alpha": 0.18119513314325514,
+          "nll": 1.1842810621512176,
+          "success": true
+        },
+        "rmse_clean_frozen": 0.8633390204871019,
+        "rmse_jump_frozen": 0.9572974835187151,
+        "rmse_clean_refitted": 0.8701089542633361,
+        "rmse_jump_refitted": 0.9622704098812571,
+        "jump_minus_clean_frozen": 0.09395846303161326,
+        "jump_minus_clean_refitted": 0.092161455617921
+      },
+      "student_density_power": {
+        "frozen_fit": {
+          "omega": 0.0051915889162527885,
+          "phi": 0.9912489764048485,
+          "alpha": 0.23444831207816857,
+          "nll": -5.234400035317101,
+          "success": true
+        },
+        "refitted_fit": {
+          "omega": 0.005162430868121991,
+          "phi": 0.9919022412138204,
+          "alpha": 0.2294313428265636,
+          "nll": -5.195857126268825,
+          "success": true
+        },
+        "rmse_clean_frozen": 0.5991856218917397,
+        "rmse_jump_frozen": 0.6348267495833161,
+        "rmse_clean_refitted": 0.6020729155847663,
+        "rmse_jump_refitted": 0.6378483077048348,
+        "jump_minus_clean_frozen": 0.035641127691576346,
+        "jump_minus_clean_refitted": 0.03577539212006853
+      }
+    },
+    "gaussian_log_bound_crossings": {
+      "frozen": 0,
+      "refitted": 0
+    },
+    "T": 2000,
+    "n_train": 1200
+  },
+  "full": false
+}

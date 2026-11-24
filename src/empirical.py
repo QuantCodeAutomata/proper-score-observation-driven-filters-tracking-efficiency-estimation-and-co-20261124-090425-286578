@@ -41,7 +41,8 @@ def _score_gaussian(v: np.ndarray, y: np.ndarray, criterion: str, beta: float, e
     raise ValueError(criterion)
 
 
-def _score_student(v: np.ndarray, y: np.ndarray, criterion: str, beta: float, ell: float, nu: int) -> np.ndarray:
+def _score_student(v: np.ndarray, y: np.ndarray, criterion: str, beta: float, ell: float, nu: int,
+                    n_nodes: int = 64) -> np.ndarray:
     """Student-t_nu working density, predictive variance v (Appendix G.1 for CRPS)."""
     scale2 = v * (nu - 2) / nu
     z = y / np.sqrt(scale2)
@@ -50,12 +51,31 @@ def _score_student(v: np.ndarray, y: np.ndarray, criterion: str, beta: float, el
     if criterion == "crps":
         return crps_student_t(v, y, nu=nu)
     if criterion == "density_power":
-        f = student_t.pdf(z, df=nu) / np.sqrt(scale2)
+        f = _t_pdf_fast(z, nu) / np.sqrt(scale2)
         c_nu_beta = _student_dp_norm_const(nu, beta)
         return -(1 + 1 / beta) * f ** beta + c_nu_beta * v ** (-beta / 2)
     if criterion == "mmd":
-        return _mmd_student_quadrature(v, y, ell, nu)
+        return _mmd_student_quadrature(v, y, ell, nu, n_nodes=n_nodes)
     raise ValueError(criterion)
+
+
+_T_PDF_CONST_CACHE: dict = {}
+
+
+def _t_pdf_const(nu: int) -> float:
+    """Normalising constant of the standard Student-t_nu density, cached per
+    nu to avoid scipy.stats dispatch overhead inside the recursion loop."""
+    if nu not in _T_PDF_CONST_CACHE:
+        from scipy.special import gammaln
+
+        _T_PDF_CONST_CACHE[nu] = float(np.exp(gammaln((nu + 1) / 2) - gammaln(nu / 2)) / np.sqrt(nu * np.pi))
+    return _T_PDF_CONST_CACHE[nu]
+
+
+def _t_pdf_fast(x: np.ndarray, nu: int) -> np.ndarray:
+    """Standard Student-t_nu density evaluated by direct formula (no
+    scipy.stats object overhead); used in the hot recursion loop."""
+    return _t_pdf_const(nu) * (1.0 + x * x / nu) ** (-(nu + 1) / 2)
 
 
 _DP_NORM_CACHE: dict = {}
@@ -80,80 +100,132 @@ def _student_dp_norm_const(nu: int, beta: float) -> float:
 _GL_NODES_CACHE: dict = {}
 
 
-def _mmd_student_quadrature(v: np.ndarray, y: np.ndarray, ell: float, nu: int, n_nodes: int = 256) -> np.ndarray:
-    """Student-t MMD-RBF score via a 256-node Gauss-Legendre rule after a
-    probability-integral-transform change of variables (Section 7, Appendix G.1)."""
+_T_QUANTILE_CACHE: dict = {}
+
+
+def _mmd_student_quadrature(v: np.ndarray, y: np.ndarray, ell: float, nu: int, n_nodes: int = 256,
+                             chunk: int = 200) -> np.ndarray:
+    """Student-t MMD-RBF score via an n_nodes-node Gauss-Legendre rule after a
+    probability-integral-transform change of variables (Section 7, Appendix
+    G.1). Vectorised and processed in chunks of observations to keep peak
+    memory bounded, since the quadrature uses one n_nodes x n_nodes kernel
+    matrix per observation. The paper uses a 256-node rule for the reported
+    scores; a smaller ``n_nodes`` is used inside the optimiser for tractable
+    fitting time and gives the same score at tighter tolerance (Appendix G.1
+    reports convergence already at a few dozen nodes)."""
     if n_nodes not in _GL_NODES_CACHE:
         nodes, weights = np.polynomial.legendre.leggauss(n_nodes)
         u = 0.5 * (nodes + 1) * (1 - 2e-6) + 1e-6  # u in (0,1), avoid exact 0/1
         w = weights * 0.5
         _GL_NODES_CACHE[n_nodes] = (u, w)
     u, w = _GL_NODES_CACHE[n_nodes]
-    scale2 = v * (nu - 2) / nu
-    scale2 = np.atleast_1d(scale2)
-    y = np.atleast_1d(y)
+    key = (n_nodes, nu)
+    if key not in _T_QUANTILE_CACHE:
+        _T_QUANTILE_CACHE[key] = student_t.ppf(u, df=nu)  # quantiles are state-independent
+    tq = _T_QUANTILE_CACHE[key]
+
+    scale2 = np.atleast_1d(v * (nu - 2) / nu).astype(float)
+    y = np.atleast_1d(y).astype(float)
+    if len(scale2) == 1 and len(y) > 1:
+        scale2 = np.full(len(y), scale2[0])
+    sigma = np.sqrt(scale2)
     out = np.empty(len(y))
-    for i in range(len(y)):
-        s2 = scale2[i] if len(scale2) > 1 else scale2[0]
-        x = student_t.ppf(u, df=nu) * np.sqrt(s2)
-        kxy = np.exp(-(x - y[i]) ** 2 / (2 * ell ** 2))
-        kxx = np.exp(-(x[:, None] - x[None, :]) ** 2 / (2 * ell ** 2))
-        e_kxy = np.sum(w * kxy)
-        e_kxx = np.sum(w[:, None] * w[None, :] * kxx)
-        out[i] = 1 - 2 * e_kxy + e_kxx
+    for start in range(0, len(y), chunk):
+        sl = slice(start, start + chunk)
+        x = tq[None, :] * sigma[sl, None]            # (n_chunk, n_nodes)
+        kxy = np.exp(-(x - y[sl, None]) ** 2 / (2 * ell ** 2))
+        e_kxy = kxy @ w
+        diff = x[:, :, None] - x[:, None, :]           # (n_chunk, n_nodes, n_nodes)
+        kxx = np.exp(-diff ** 2 / (2 * ell ** 2))
+        e_kxx = np.einsum("i,nij,j->n", w, kxx, w)
+        out[sl] = 1 - 2 * e_kxy + e_kxx
     return out
 
 
 def score(v: np.ndarray, y: np.ndarray, criterion: str, density: str,
-          beta: float = 0.15, ell: float = 2.0, nu: int = 6) -> np.ndarray:
-    """Per-observation proper score under ``density`` in {"gaussian","student"}."""
+          beta: float = 0.15, ell: float = 2.0, nu: int = 6, mmd_nodes: int = 64) -> np.ndarray:
+    """Per-observation proper score under ``density`` in {"gaussian","student"}.
+    ``mmd_nodes`` controls the Gauss-Legendre quadrature order used only by
+    the Student-t MMD-RBF cell; pass 256 for the paper's reported final
+    scores (Appendix G.1) and a smaller value for the optimiser's objective."""
     if density == "gaussian":
         return _score_gaussian(v, y, criterion, beta, ell)
     if density == "student":
-        return _score_student(v, y, criterion, beta, ell, nu)
+        return _score_student(v, y, criterion, beta, ell, nu, n_nodes=mmd_nodes)
     raise ValueError(density)
 
 
 # ---------------------------------------------------------------------------
 # Filter recursion and sample criterion
 # ---------------------------------------------------------------------------
+def _recursion_driver(
+    lam: float, y: float, criterion: str, density: str,
+    beta: float, ell: float, nu: int, mmd_nodes: int,
+) -> float:
+    """Raw innovation u_S(lambda,y) = -dS/dlambda driving the recursion for
+    cell (criterion, density); closed form where Appendix G gives one
+    (Gaussian log/density-power/CRPS/MMD via ``src.filters.scale_update``,
+    Student-t6 log via the Student-t influence function), else a central
+    finite difference of the cell's own ``score`` in lambda = log v (Eq. 2.6,
+    psi_S = -partial_lambda S), so every (density, criterion) cell of the
+    Section 7 factorial updates its own filtered state rather than a shared
+    Gaussian recursion. The Student-t6 MMD cell uses a reduced-node
+    Gauss-Legendre quadrature (``mmd_nodes``) inside this hot loop for
+    tractable optimisation time; final reported scores use the full 256-node
+    rule via ``score()``."""
+    if density == "gaussian":
+        from src.filters import scale_update
+
+        rule = {"log": "gaussian_log", "density_power": "density_power",
+                "crps": "crps", "mmd": "mmd_rbf"}[criterion]
+        return scale_update(rule, lam, y, beta=beta, ell=ell, nu=nu)
+    if density == "student" and criterion == "log":
+        from src.scoring_rules import driver_student_log
+
+        scale2 = (nu - 2) / nu
+        z = y / np.sqrt(np.exp(lam) * scale2)
+        return 0.5 * driver_student_log(z, nu=nu)
+    # Numerical innovation psi_S = -dS/dlambda for cells without a closed
+    # form wired in above (Student-t6 density-power, CRPS, MMD).
+    h = 1e-5
+    if criterion == "mmd":
+        s_p = _score_student(np.exp(lam + h), np.array([y]), "mmd", beta, ell, nu, n_nodes=mmd_nodes)[0]
+        s_m = _score_student(np.exp(lam - h), np.array([y]), "mmd", beta, ell, nu, n_nodes=mmd_nodes)[0]
+    else:
+        s_p = _score_student(np.exp(lam + h), np.array([y]), criterion, beta, ell, nu)[0]
+        s_m = _score_student(np.exp(lam - h), np.array([y]), criterion, beta, ell, nu)[0]
+    return -(s_p - s_m) / (2 * h)
+
+
 def filtered_variance_path(
-    y: np.ndarray, omega: float, phi: float, alpha: float, rule: str,
-    beta: float = 0.15, ell: float = 2.0, nu: int = 6,
+    y: np.ndarray, omega: float, phi: float, alpha: float, criterion: str,
+    density: str = "gaussian", beta: float = 0.15, ell: float = 2.0, nu: int = 6,
+    mmd_nodes: int = 64,
 ) -> np.ndarray:
     """Run the recursion lambda_{t+1}=omega+phi*lambda_t+alpha*u_S(lambda_t,y_t)
-    for the Gaussian-working-density drivers; returns the predictive variance
-    path v_t = exp(lambda_t), aligned with y (v_t predicts y_t)."""
-    from src.filters import scale_update
-
+    for the (criterion, density) cell; returns the predictive variance path
+    v_t = exp(lambda_t), aligned with y (v_t predicts y_t)."""
     T = len(y)
     lam = np.empty(T + 1)
     lam[0] = omega / (1 - phi)
     for t in range(T):
-        u = scale_update(rule, lam[t], y[t], beta=beta, ell=ell, nu=nu)
+        u = _recursion_driver(lam[t], y[t], criterion, density, beta, ell, nu, mmd_nodes)
         lam[t + 1] = omega + phi * lam[t] + alpha * u
     return np.exp(lam[:T])
 
 
 def sample_criterion(
     y: np.ndarray, params: np.ndarray, criterion: str, density: str,
-    beta: float = 0.15, ell: float = 2.0, nu: int = 6,
+    beta: float = 0.15, ell: float = 2.0, nu: int = 6, mmd_nodes: int = 64,
 ) -> float:
     """Q_hat_T(vartheta) = (1/T) sum S(P_{lambda_t}, y_t), recursion started
     at lambda_1 = omega/(1-phi)."""
     omega, phi, alpha = params
     if not (-0.999 < phi < 0.999) or alpha <= 0:
         return 1e10
-    rule = {"log": "gaussian_log", "density_power": "density_power",
-            "crps": "crps", "mmd": "mmd_rbf"}[criterion]
-    v = filtered_variance_path(y, omega, phi, alpha, rule, beta=beta, ell=ell, nu=nu)
-    if density == "student":
-        # refit uses the Student-t predictive variance scaling for the score,
-        # while the recursion itself remains on the Gaussian working density
-        # (Section 7: predictive density and updating criterion are varied
-        # independently in the factorial design).
-        pass
-    s = score(v, y, criterion, density, beta=beta, ell=ell, nu=nu)
+    v = filtered_variance_path(y, omega, phi, alpha, criterion, density=density,
+                                beta=beta, ell=ell, nu=nu, mmd_nodes=mmd_nodes)
+    s = score(v, y, criterion, density, beta=beta, ell=ell, nu=nu, mmd_nodes=mmd_nodes)
     if not np.all(np.isfinite(s)):
         return 1e10
     return float(np.mean(s))
@@ -162,9 +234,14 @@ def sample_criterion(
 def fit_filter(
     y: np.ndarray, criterion: str, density: str, n_starts: int = 8,
     beta: float = 0.15, ell: float = 2.0, nu: int = 6, seed: int = 0,
+    mmd_nodes: int = 64,
 ) -> dict:
     """Estimate (omega, phi, alpha) by minimising the sample criterion with
-    L-BFGS-B over ``n_starts`` fixed starting values (Section 7)."""
+    L-BFGS-B over ``n_starts`` fixed starting values (Section 7). ``mmd_nodes``
+    sets the Gauss-Legendre order used while optimising the Student-t MMD-RBF
+    cell; the full 256-node rule (Appendix G.1) is reserved for the final
+    score evaluation via ``score()`` since it is too costly inside the
+    optimiser's finite-difference gradient loop."""
     rng = np.random.default_rng(seed)
     starts = []
     phis = np.linspace(0.80, 0.98, n_starts)
@@ -177,7 +254,7 @@ def fit_filter(
     best = None
     for x0 in starts:
         res = minimize(
-            lambda p: sample_criterion(y, p, criterion, density, beta, ell, nu),
+            lambda p: sample_criterion(y, p, criterion, density, beta, ell, nu, mmd_nodes=mmd_nodes),
             x0=np.array(x0), method="L-BFGS-B",
             bounds=[(-5, 5), (-0.999, 0.999), (1e-4, 2.0)],
             options={"maxiter": 200},

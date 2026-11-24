@@ -1,0 +1,54 @@
+{
+  "n_obs": 100,
+  "train_years": [
+    1871,
+    1944
+  ],
+  "test_years": [
+    1945,
+    1970
+  ],
+  "fits": {
+    "gaussian_log": {
+      "omega": 139.81118331726265,
+      "phi": 0.8468294035727792,
+      "alpha": 57.928080090900934,
+      "sigma": 147.9985944110774
+    },
+    "crps": {
+      "omega": 107.846279252041,
+      "phi": 0.8824733227627186,
+      "alpha": 73.71612863666729,
+      "sigma": 146.41837734342795
+    },
+    "density_power": {
+      "omega": 113.51645810119466,
+      "phi": 0.8761593241115606,
+      "alpha": 64.99939927269469,
+      "sigma": 146.54674099849123
+    }
+  },
+  "sigma_log": 147.9985944110774,
+  "peak_displacement_1946_over_sigma_log": {
+    "gaussian_log": 1.0695341234189641,
+    "crps": 0.39426274851944726,
+    "density_power": 0.10349240453741292
+  },
+  "first_half_decay_year": {
+    "gaussian_log": 1947,
+    "crps": 1947,
+    "density_power": 1947
+  },
+  "expected_outcomes": {
+    "peak_1946_over_sigma_log": {
+      "gaussian_log": 1.615,
+      "crps": 0.465,
+      "density_power": 0.066
+    },
+    "first_half_decay_year": {
+      "gaussian_log": 1949,
+      "crps": 1948,
+      "density_power": 1949
+    }
+  }
+}

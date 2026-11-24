@@ -1,0 +1,5 @@
+ticker,requested_start,requested_end,realized_start,realized_end,row_count,data_source,warnings,failure
+SPY,2015-01-01,2024-12-31,2015-01-05,2024-12-31,2516,massive,,
+QQQ,2015-01-01,2024-12-31,2015-01-05,2024-12-31,2516,yahoo,"['start moved to 2018-06-04', 'yahoo has 2516 bars vs massive 1656']",
+DIA,2015-01-01,2024-12-31,2015-01-05,2024-12-31,2516,massive,,
+EWU,2015-01-01,2024-12-31,2015-01-05,2024-12-31,2516,yahoo,"['start moved to 2016-11-04', 'yahoo has 2516 bars vs massive 2051']",

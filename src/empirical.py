@@ -49,7 +49,7 @@ def _score_student(v: np.ndarray, y: np.ndarray, criterion: str, beta: float, el
     if criterion == "log":
         return 0.5 * np.log(v) + 0.5 * (nu + 1) * np.log(1 + z ** 2 / (nu - 2))
     if criterion == "crps":
-        return crps_student_t(v, y, nu=nu)
+        return crps_student_t(scale2, y, nu=nu)
     if criterion == "density_power":
         f = _t_pdf_fast(z, nu) / np.sqrt(scale2)
         c_nu_beta = _student_dp_norm_const(nu, beta)

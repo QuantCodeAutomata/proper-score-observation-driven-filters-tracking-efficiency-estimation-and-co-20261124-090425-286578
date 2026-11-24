@@ -100,6 +100,11 @@ multiplier as the paper's stated convention
 (`results/exp4_summary.json: gaussian_log_closed_form_check`). The correctly
 specified Student-t6 log score attains efficiency `1.000` exactly under t_6.
 
+The target shift of the Student-t6 CRPS cell under t_3 innovations,
+`delta_student_crps(t_3) = -0.457` (`results/exp4_efficiency_table.csv`),
+matches the paper's reported value of -0.457 to three decimals, confirming
+the closed-form CRPS score used for the first-order condition (Eq. G.1).
+
 **Verdict:** reproduced. All reported numbers match the paper's Table 3 to at
 least three significant digits.
 

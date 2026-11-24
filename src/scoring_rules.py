@@ -223,8 +223,11 @@ def curvature_normalised_driver(rule: str, z: np.ndarray) -> np.ndarray:
 _CRPS_T_CONST_CACHE: dict = {}
 
 
-def crps_student_t(v: np.ndarray, y: np.ndarray, nu: float = NU_STUDENT) -> np.ndarray:
-    """CRPS_{t_nu}(v, y) per Eq. (G.1); v is the predictive variance.
+def crps_student_t(scale2: np.ndarray, y: np.ndarray, nu: float = NU_STUDENT) -> np.ndarray:
+    """CRPS_{t_nu}(scale2, y) per Eq. (G.1), the Gneiting-Raible / Jordan et al.
+    (2019) closed form, as implemented in the ``scoringRules`` R package's
+    ``crps_t``. ``scale2`` is the squared *scale* parameter of the Student-t_nu
+    working density (not its variance: Var = scale2 * nu/(nu-2) for nu > 2).
 
     Uses ``scipy.special.stdtr`` (a direct ufunc) and a cached normalising
     constant instead of the ``scipy.stats.t`` object interface, because this
@@ -232,13 +235,13 @@ def crps_student_t(v: np.ndarray, y: np.ndarray, nu: float = NU_STUDENT) -> np.n
     from scipy.special import beta as beta_fn, stdtr
 
     if nu not in _CRPS_T_CONST_CACHE:
-        d_nu = nu - 2
-        c_nu = (2 * np.sqrt(nu - 2) / (nu - 1)) * beta_fn(0.5, nu - 0.5) / beta_fn(0.5, nu / 2) ** 2
+        c_nu = (2 * np.sqrt(nu) / (nu - 1)) * beta_fn(0.5, nu - 0.5) / beta_fn(0.5, nu / 2) ** 2
         pdf_const = float(gamma((nu + 1) / 2) / (np.sqrt(nu * np.pi) * gamma(nu / 2)))
-        _CRPS_T_CONST_CACHE[nu] = (d_nu, c_nu, pdf_const)
-    d_nu, c_nu, pdf_const = _CRPS_T_CONST_CACHE[nu]
+        _CRPS_T_CONST_CACHE[nu] = (c_nu, pdf_const)
+    c_nu, pdf_const = _CRPS_T_CONST_CACHE[nu]
 
-    z = y / np.sqrt(v)
+    scale = np.sqrt(scale2)
+    z = y / scale
     f_nu = pdf_const * (1.0 + z * z / nu) ** (-(nu + 1) / 2)
     F_nu = stdtr(nu, z)
-    return np.sqrt(v) * (z * (2 * F_nu - 1) + 2 * f_nu * (d_nu + z ** 2) / (nu - 1) - c_nu)
+    return scale * (z * (2 * F_nu - 1) + 2 * f_nu * (nu + z ** 2) / (nu - 1) - c_nu)

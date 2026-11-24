@@ -69,9 +69,10 @@ def _psi_scale_equivariant(rule: str, eps: np.ndarray, delta: float, beta: float
     if rule == "student_crps":
         from src.scoring_rules import crps_student_t
         v = np.exp(delta)
+        scale2 = v * (nu_work - 2) / nu_work
         h = 1e-5
-        s_plus = crps_student_t(v * np.exp(h), eps, nu=nu_work)
-        s_minus = crps_student_t(v * np.exp(-h), eps, nu=nu_work)
+        s_plus = crps_student_t(scale2 * np.exp(h), eps, nu=nu_work)
+        s_minus = crps_student_t(scale2 * np.exp(-h), eps, nu=nu_work)
         return -(s_plus - s_minus) / (2 * h)
     if rule == "student_density_power":
         v = np.exp(delta)

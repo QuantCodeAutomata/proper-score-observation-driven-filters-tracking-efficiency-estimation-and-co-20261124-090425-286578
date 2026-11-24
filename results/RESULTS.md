@@ -170,7 +170,7 @@ train/test split, `L-BFGS-B` with 2 starts (paper: 8 — reduced for runtime).
 | Gaussian MMD | 1.121 | 2.32% | 6.82% |
 | Student-t6 log | 1.182 | 0.43% | 3.28% |
 | Student-t6 density-power | 1.105 | 0.76% | 6.09% |
-| Student-t6 CRPS | 2.046 | 0.00% | 0.20% |
+| Student-t6 CRPS | 1.087 | 0.76% | 5.99% |
 | Student-t6 MMD | 1.111 | 0.83% | 5.99% |
 | GARCH(1,1)-Gaussian | 1.114 | 1.95% | 6.62% |
 | GARCH(1,1)-Student | 1.111 | 1.26% | 7.12% |
@@ -178,24 +178,26 @@ train/test split, `L-BFGS-B` with 2 starts (paper: 8 — reduced for runtime).
 
 **Verdict:** not reproduced at the paper's precision, partially reproduced
 qualitatively. On the reduced 4-market universe the equal-market QLIKE range
-(1.09–2.05) brackets but is wider than the paper's reported 1.007–1.088, and
+(1.09–1.18) brackets but is wider than the paper's reported 1.007–1.088, and
 exceedance frequencies are higher than nominal for most cells instead of
 clustering near the paper's reported 1.91%–2.63% (Gaussian) / 1.46%–1.56%
-(Student-t6) at the 1% level. The Student-t6 CRPS cell is a clear outlier
-(QLIKE 2.05, near-zero exceedances), which was not present in the paper's
-report; this indicates the cell's parameters converged to a degenerate fit on
-this small universe/short sample rather than reproducing the paper's result.
-The direction the paper emphasises — switching from Gaussian to Student-t6
-moves exceedance frequencies toward the nominal level — holds for the log and
+(Student-t6) at the 1% level. An earlier run showed the Student-t6 CRPS cell
+as a degenerate outlier (QLIKE 2.05, near-zero exceedances); this was traced
+to the closed-form Student-t CRPS (Eq. G.1), which is defined in terms of the
+working scale `sqrt(v)` and was being evaluated with the working variance `v`
+in its place. Correcting this (see "Deviations from the paper") brings the
+Student-t6 CRPS cell in line with the other Student-t6 cells (QLIKE 1.087,
+1% exceedance 0.76%, both now closest to the Student-t6 density-power and MMD
+cells rather than a separate degenerate fit), confirming that the earlier
+outlier was a code defect rather than a feature of the reduced universe. The
+direction the paper emphasises — switching from Gaussian to Student-t6 moves
+exceedance frequencies toward the nominal level — holds for the log and
 density-power criteria (1% exceedance drops from ~2% to ~0.4–0.8%, under-
 shooting rather than approaching 1% as in the paper) but the magnitude and
 some individual cells do not match. The cause was not fully isolated within
 the available time; the reduced universe (4 of 12 markets) and shortened
 sample (2015–present instead of 2000/2007–2024) are the most likely drivers,
-since both reduce the training data available to the 3-parameter recursion
-and the degrees-of-freedom-fixed Student-t6 CRPS cell is known to be
-numerically delicate (Section 7 notes CRPS/MMD cells are more prone to flat
-likelihood regions on short samples).
+since both reduce the training data available to the 3-parameter recursion.
 
 ## Experiment 7 — Controlled Outlier Propagation: SPX Counterfactual
 

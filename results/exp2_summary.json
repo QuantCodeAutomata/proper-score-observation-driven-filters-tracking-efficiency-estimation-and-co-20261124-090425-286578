@@ -1,0 +1,23 @@
+{
+  "epsilon": 0.05,
+  "v0": 1.0,
+  "tau_grid_min_max_n": [
+    1e-06,
+    100.0,
+    200
+  ],
+  "v_star_over_v0_at_tau_80": {
+    "gaussian_log": 4.949999999994986,
+    "density_power": 1.132032583071932,
+    "crps": 1.2007928914532788,
+    "mmd_rbf": 1.211673674832991
+  },
+  "v_star_over_v0_at_tau_max": {
+    "gaussian_log": 5.949999999999998,
+    "density_power": 1.121018932802047,
+    "crps": 1.2084024208441682,
+    "mmd_rbf": 1.2130647179611993
+  },
+  "max_gaussian_log_root_discrepancy": 9.963230240828125e-11,
+  "gaussian_log_matches_kl_closed_form": true
+}

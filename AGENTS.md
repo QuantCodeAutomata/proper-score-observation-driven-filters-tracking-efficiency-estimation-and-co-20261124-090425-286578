@@ -1,7 +1,7 @@
 # Repository guide
 
 Replication of *"Proper-Score Observation-Driven Filters: Tracking Efficiency,
-Estimation, and Continuous-Time Limits"* (nine selected experiments; see
+Estimation, and Continuous-Time Limits"* (nine experiments; see
 README.md and `results/RESULTS.md`).
 
 ## Layout

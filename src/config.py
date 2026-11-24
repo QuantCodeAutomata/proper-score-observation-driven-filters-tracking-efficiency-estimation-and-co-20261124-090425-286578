@@ -135,16 +135,16 @@ EXP6_GARCH_SUM_MAX = 0.999                # GARCH stationarity bound a+b, Sectio
 EXP6_VAR_LEVELS = (0.01, 0.05)            # VaR exceedance levels, Section 7
 EXP6_MMD_BW_SENSITIVITY = (0.5, 1.0, 2.0)  # bandwidth sensitivity multipliers, Appendix G.6
 EXP6_NU_SENSITIVITY_GRID = (4, 5, 6, 8, 10)  # Student-t shape sensitivity grid, Appendix G.6
-# Reduced-for-time-budget counterpart of EXP6_LBFGS_N_STARTS=8: the Student-t
+# Reduced-for-time counterpart of EXP6_LBFGS_N_STARTS=8: the Student-t
 # MMD-RBF cell's finite-difference-gradient L-BFGS-B fit is too slow at the
 # paper's start count within the time available; --full restores EXP6_LBFGS_N_STARTS.
 EXP6_LBFGS_N_STARTS_RUN = 2
-# Reduced-for-time-budget counterpart of EXP6_TICKERS=12 markets: the paper's
+# Reduced-for-time counterpart of EXP6_TICKERS=12 markets: the paper's
 # list (Table G.10) is a fixed set with no ranking rule, so the first four
 # markets in list order (SPY, QQQ, DIA, EWU = US, US, US, UK) are kept as the
 # largest/most liquid subset; --full restores EXP6_TICKERS.
 EXP6_TICKERS_RUN = EXP6_TICKERS[:4]
-# Reduced-for-time-budget counterpart of EXP6_START_DATE="2000-01-01": a
+# Reduced-for-time counterpart of EXP6_START_DATE="2000-01-01": a
 # 10-year window instead of 24 keeps each per-market fit's series length
 # tractable; --full restores EXP6_START_DATE.
 EXP6_START_DATE_RUN = "2015-01-01"

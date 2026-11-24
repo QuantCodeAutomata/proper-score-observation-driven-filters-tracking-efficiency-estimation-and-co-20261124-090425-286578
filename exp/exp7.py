@@ -47,7 +47,7 @@ from src.empirical import fit_filter, filtered_variance_path, mmd_bandwidth
 
 RESULTS_DIR = Path("results")
 
-# Reduced-for-time-budget counterpart of EXP6_LBFGS_N_STARTS=8 (the paper's
+# Reduced-for-time counterpart of EXP6_LBFGS_N_STARTS=8 (the paper's
 # start count, Section 7): this one experiment fits only four cells on a
 # single market, so 3 starts keeps the default run fast; --full restores 8.
 N_STARTS_RUN = 3

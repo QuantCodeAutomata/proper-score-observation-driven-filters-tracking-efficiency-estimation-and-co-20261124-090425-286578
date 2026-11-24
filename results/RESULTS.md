@@ -55,7 +55,7 @@ executed values 1.12–1.21).
 Source: `results/exp3_contamination_filtering.json`, `results/exp3_summary.png`.
 
 Executed configuration: `R=2000` replications (paper: `R=20000`; reduced to
-keep total runtime inside the available budget — see "Deviations from the
+keep total runtime tractable — see "Deviations from the
 paper"), `T=4000` (unchanged).
 
 | Rule | RMSE clean | RMSE contam. | max-dev contam. | flagged-update contam. |
@@ -350,7 +350,7 @@ difference.
   drivers) was used (`src/config.py: EXP3_FLAG_THRESHOLD`).
 - **`exp_9` location-filter driver formulas.** Appendix G.7 states that CRPS
   and density-power location drivers are bounded/redescending but does not
-  give their closed-form expressions in the retrieved text. They were
+  give their closed-form expressions. They were
   constructed by adapting the scale-model driver algebra (Table G.5) to a
   location model with the scoring rule evaluated at `z = (y-mu)/sigma`,
   following the general proper-scoring-rule construction of Section 2; this
